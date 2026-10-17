@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          v=1.7.7
+          base="https://github.com/rhysd/actionlint/releases/download/v${v}"
+          curl -fsSL -o "actionlint.tgz" "${base}/actionlint_${v}_linux_amd64.tar.gz"
+          curl -fsSL -o "checksums.txt" "${base}/actionlint_${v}_checksums.txt"
+          grep " actionlint_${v}_linux_amd64.tar.gz\$" checksums.txt | sed 's/ actionlint_.*/ actionlint.tgz/' | sha256sum -c -
+          tar -xzf actionlint.tgz actionlint
+          ./actionlint
+
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e '.[dev]'
+      - run: python -m pytest -q
+
+  gate:
+    name: The installed command catches a regressed prompt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the package the way a user would (a wheel, not an editable checkout)
+        run: |
+          pip install build
+          python -m build --wheel
+          pip install dist/*.whl
+      - name: The committed example reports are what the generator writes today
+        run: python examples/make_reports.py --check
+      - name: The good prompt passes, and what is printed is what the README quotes
+        working-directory: examples
+        run: |
+          set -euo pipefail
+          prompt-regression run triage.toml | diff - reports/run-v1.txt
+          prompt-regression run triage.toml --baseline baseline.json | diff - reports/run-v1-vs-baseline.txt
+          prompt-regression run triage.toml -f md | diff - reports/run-v1.md
+      - name: A prompt that lost an instruction fails the build (exit 3), and says which cases
+        working-directory: examples
+        run: |
+          set -euo pipefail
+          rc=0
+          prompt-regression run triage.toml --prompt prompts/triage_v2.txt --baseline baseline.json > "$RUNNER_TEMP/v2.txt" || rc=$?
+          test "$rc" -eq 3
+          diff "$RUNNER_TEMP/v2.txt" reports/run-v2-vs-baseline.txt
+          grep -c '^REGRESSION' "$RUNNER_TEMP/v2.txt"
+      - name: Comparing two prompts shows the regressions and exits 3
+        working-directory: examples
+        run: |
+          set -euo pipefail
+          rc=0
+          prompt-regression compare triage.toml --prompt prompts/triage_v1.txt prompts/triage_v3.txt > "$RUNNER_TEMP/cmp.txt" || rc=$?
+          test "$rc" -eq 3
+          diff "$RUNNER_TEMP/cmp.txt" reports/compare-v1-v3.txt
+          prompt-regression compare triage.toml --prompt prompts/triage_v3.txt prompts/triage_v1.txt
+      - name: Record, then replay with the model gone
+        working-directory: examples
+        run: |
+          set -euo pipefail
+          prompt-regression record triage.toml -o "$RUNNER_TEMP/rec.jsonl"
+          sed 's/triage_model.py/missing_model.py/' triage.toml > broken.toml
+          prompt-regression run broken.toml --replay "$RUNNER_TEMP/rec.jsonl"
+          rc=0
+          prompt-regression run broken.toml > /dev/null || rc=$?
+          test "$rc" -eq 3
+      - name: JUnit output is well-formed and counts the failures
+        working-directory: examples
+        run: |
+          set -euo pipefail
+          prompt-regression run triage.toml --prompt prompts/triage_v2.txt --junit "$RUNNER_TEMP/junit.xml" > /dev/null || test $? -eq 3
+          python -c "import sys, xml.etree.ElementTree as ET; r = ET.parse(sys.argv[1]).getroot(); assert (r.get('tests'), r.get('failures')) == ('6', '6'), r.attrib" "$RUNNER_TEMP/junit.xml"
+      - name: Put the markdown report in the job summary
+        working-directory: examples
+        run: prompt-regression run triage.toml --github-summary > /dev/null

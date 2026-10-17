@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prompt-regression"
+version = "0.1.0"
+description = "Regression tests for prompts: cases with deterministic checks, repeated runs, a baseline that fails the build when a pass rate drops, and a side-by-side comparison of two prompts or models."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Eren Özgü" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+prompt-regression = "prompt_regression.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["prompt_regression*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"prompt_regression/*" = ["E501"]
+"examples/*" = ["E501"]
+"tests/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

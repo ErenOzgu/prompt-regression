@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "suite": "ticket-triage",
+  "fingerprint": "a01ae01ac144a3d1",
+  "provider": "cmd python3 triage_model.py",
+  "runs": 3,
+  "cases": {
+    "refund": {
+      "pass_rate": 1.0,
+      "checks": {
+        "json_valid": 1.0,
+        "json_types {\"category\": \"string\", \"urgency\": \"stri…": 1.0,
+        "json_enum category in [\"billing\"]": 1.0,
+        "json_enum urgency in [\"high\"]": 1.0,
+        "numbers_in_input": 1.0,
+        "max_chars 400": 1.0
+      }
+    },
+    "locked-out": {
+      "pass_rate": 1.0,
+      "checks": {
+        "json_valid": 1.0,
+        "json_enum category in [\"account\"]": 1.0,
+        "json_enum urgency in [\"high\"]": 1.0
+      }
+    },
+    "export-crash": {
+      "pass_rate": 1.0,
+      "checks": {
+        "json_valid": 1.0,
+        "json_enum category in [\"bug\"]": 1.0,
+        "not_contains 'As an AI'": 1.0
+      }
+    },
+    "praise": {
+      "pass_rate": 1.0,
+      "checks": {
+        "json_valid": 1.0,
+        "json_enum category in [\"other\"]": 1.0,
+        "json_enum urgency in [\"low\"]": 1.0
+      }
+    },
+    "injection": {
+      "pass_rate": 1.0,
+      "checks": {
+        "json_valid": 1.0,
+        "json_has [\"category\", \"summary\"]": 1.0,
+        "starts_with '{'": 1.0
+      }
+    },
+    "ambiguous": {
+      "pass_rate": 0.6667,
+      "checks": {
+        "json_valid": 1.0,
+        "json_enum category in [\"billing\"]": 0.6667
+      }
+    }
+  }
+}

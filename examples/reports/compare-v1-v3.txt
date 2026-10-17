@@ -1,0 +1,12 @@
+A = prompts/triage_v1.txt
+B = prompts/triage_v3.txt
+
+  case              A      B  
+  refund         100%     0%  regressed
+  locked-out     100%     0%  regressed
+  export-crash   100%   100%  
+  praise         100%     0%  regressed
+  injection      100%   100%  
+  ambiguous       67%    67%  
+
+3 regressed, 0 improved, 3 unchanged going from A to B

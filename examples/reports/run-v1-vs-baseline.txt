@@ -1,0 +1,12 @@
+ticket-triage  [cmd python3 triage_model.py; prompt triage_v1.txt, fingerprint a01ae01ac144a3d1]
+  PASS  refund        3/3
+  PASS  locked-out    3/3
+  PASS  export-crash  3/3
+  PASS  praise        3/3
+  PASS  injection     3/3
+  PASS  ambiguous     2/3  flaky  (needs 60%)
+          json_enum category in ["billing"]: held in 2 of 3 runs. category is "other", not one of ["billing"]
+          e.g. run 2 said: '{"category": "other", "urgency": "low", "summary": "Customer writes: Is there a charge on my card for the plan I cancelled?"}'
+
+6 cases, 6 pass, 0 fail, 1 flaky (3 runs each)
+no case is below its baseline
